@@ -1,8 +1,14 @@
-**LevelDB is a fast key-value storage library written at Google that provides an ordered mapping from string keys to string values.**
+**CaseDB is a put-intensive key-value storage based on open-source LevelDB library written at Google that provides an ordered mapping from string keys to string values.**
 
-[![Build Status](https://travis-ci.org/google/leveldb.svg?branch=master)](https://travis-ci.org/google/leveldb)
 
-Authors: Sanjay Ghemawat (sanjay@google.com) and Jeff Dean (jeff@google.com)
+Authors of LevelDB: Sanjay Ghemawat (sanjay@google.com) and Jeff Dean (jeff@google.com)
+
+# Changes in CaseDB
+  * New source folder CBuffer is included 
+  * CBuffer implements the memory component to merge the small data
+  * Compaction procedure is updated
+  * While flushing from memory to disc, data is seperated to metadata and value parts
+  * Metadata lookup is included in data reads
 
 # Features
   * Keys and values are arbitrary byte arrays.
