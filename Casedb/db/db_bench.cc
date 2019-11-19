@@ -41,6 +41,7 @@
 //      stats       -- Print DB stats
 //      sstables    -- Print sstable info
 //      heapprofile -- Dump a heap profile (if supported by this port)
+//		cbuffer     -- Enable / Disable CBuffer
 static const char* FLAGS_benchmarks =
     "fillseq,"
     "fillsync,"
@@ -59,6 +60,7 @@ static const char* FLAGS_benchmarks =
     "snappycomp,"
     "snappyuncomp,"
     "acquireload,"
+	"cbuffer,"
     ;
 
 // Number of key/values to place in database
@@ -113,6 +115,9 @@ static bool FLAGS_reuse_logs = false;
 
 // Use the db with the following name.
 static const char* FLAGS_db = NULL;
+
+//CBuffer Enable / Disable flag
+static bool FLAGS_cbuffer = true;
 
 namespace leveldb {
 
@@ -974,7 +979,10 @@ int main(int argc, char** argv) {
     } else if (sscanf(argv[i], "--use_existing_db=%d%c", &n, &junk) == 1 &&
                (n == 0 || n == 1)) {
       FLAGS_use_existing_db = n;
-    } else if (sscanf(argv[i], "--reuse_logs=%d%c", &n, &junk) == 1 &&
+    } else if (sscanf(argv[i], "--cbuffer=%d%c", &n, &junk) == 1 &&
+		(n == 0 || n == 1)) {
+		FLAGS_cbuffer = n;
+	} else if (sscanf(argv[i], "--reuse_logs=%d%c", &n, &junk) == 1 &&
                (n == 0 || n == 1)) {
       FLAGS_reuse_logs = n;
     } else if (sscanf(argv[i], "--num=%d%c", &n, &junk) == 1) {
