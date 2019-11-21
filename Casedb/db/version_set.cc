@@ -50,17 +50,17 @@ static double MaxBytesForLevel(const Options* options, int level) {
   return result;
 }
 
+static int64_t TotalFileSize(const std::vector<FileMetaData*>& files) {
+	int64_t sum = 0;
+	for (size_t i = 0; i < files.size(); i++) {
+		sum += files[i]->file_size;
+	}
+	return sum;
+}
+
 static uint64_t MaxFileSizeForLevel(const Options* options, int level) {
   // We could vary per level to reduce number of files?
   return TargetFileSize(options);
-}
-
-static int64_t TotalFileSize(const std::vector<FileMetaData*>& files) {
-  int64_t sum = 0;
-  for (size_t i = 0; i < files.size(); i++) {
-    sum += files[i]->file_size;
-  }
-  return sum;
 }
 
 Version::~Version() {
@@ -210,20 +210,6 @@ class Version::LevelFileNumIterator : public Iterator {
   mutable char value_buf_[16];
 };
 
-static Iterator* GetFileIterator(void* arg,
-                                 const ReadOptions& options,
-                                 const Slice& file_value) {
-  TableCache* cache = reinterpret_cast<TableCache*>(arg);
-  if (file_value.size() != 16) {
-    return NewErrorIterator(
-        Status::Corruption("FileReader invoked with unexpected value"));
-  } else {
-    return cache->NewIterator(options,
-                              DecodeFixed64(file_value.data()),
-                              DecodeFixed64(file_value.data() + 8));
-  }
-}
-
 Iterator* Version::NewConcatenatingIterator(const ReadOptions& options,
                                             int level) const {
   return NewTwoLevelIterator(
@@ -248,6 +234,21 @@ void Version::AddIterators(const ReadOptions& options,
       iters->push_back(NewConcatenatingIterator(options, level));
     }
   }
+}
+
+static Iterator* GetFileIterator(void* arg,
+	const ReadOptions& options,
+	const Slice& file_value) {
+	TableCache* cache = reinterpret_cast<TableCache*>(arg);
+	if (file_value.size() != 16) {
+		return NewErrorIterator(
+			Status::Corruption("FileReader invoked with unexpected value"));
+	}
+	else {
+		return cache->NewIterator(options,
+			DecodeFixed64(file_value.data()),
+			DecodeFixed64(file_value.data() + 8));
+	}
 }
 
 // Callback from TableCache::Get()
@@ -800,23 +801,6 @@ VersionSet::~VersionSet() {
   delete descriptor_file_;
 }
 
-void VersionSet::AppendVersion(Version* v) {
-  // Make "v" current
-  assert(v->refs_ == 0);
-  assert(v != current_);
-  if (current_ != NULL) {
-    current_->Unref();
-  }
-  current_ = v;
-  v->Ref();
-
-  // Append to linked list
-  v->prev_ = dummy_versions_.prev_;
-  v->next_ = &dummy_versions_;
-  v->prev_->next_ = v;
-  v->next_->prev_ = v;
-}
-
 Status VersionSet::LogAndApply(VersionEdit* edit, port::Mutex* mu) {
   if (edit->has_log_number_) {
     assert(edit->log_number_ >= log_number_);
@@ -900,6 +884,23 @@ Status VersionSet::LogAndApply(VersionEdit* edit, port::Mutex* mu) {
   }
 
   return s;
+}
+
+void VersionSet::AppendVersion(Version* v) {
+	// Make "v" current
+	assert(v->refs_ == 0);
+	assert(v != current_);
+	if (current_ != NULL) {
+		current_->Unref();
+	}
+	current_ = v;
+	v->Ref();
+
+	// Append to linked list
+	v->prev_ = dummy_versions_.prev_;
+	v->next_ = &dummy_versions_;
+	v->prev_->next_ = v;
+	v->next_->prev_ = v;
 }
 
 Status VersionSet::Recover(bool *save_manifest) {
@@ -1055,12 +1056,6 @@ bool VersionSet::ReuseManifest(const std::string& dscname,
   return true;
 }
 
-void VersionSet::MarkFileNumberUsed(uint64_t number) {
-  if (next_file_number_ <= number) {
-    next_file_number_ = number + 1;
-  }
-}
-
 void VersionSet::Finalize(Version* v) {
   // Precomputed best level for next compaction
   int best_level = -1;
@@ -1097,6 +1092,12 @@ void VersionSet::Finalize(Version* v) {
 
   v->compaction_level_ = best_level;
   v->compaction_score_ = best_score;
+}
+
+void VersionSet::MarkFileNumberUsed(uint64_t number) {
+	if (next_file_number_ <= number) {
+		next_file_number_ = number + 1;
+	}
 }
 
 Status VersionSet::WriteSnapshot(log::Writer* log) {
